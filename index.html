@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>محول العملات</title>
+  <style>
+    :root {
+      --primary-color: #4CAF50;
+      --text-color: #333;
+      --border-radius: 12px;
+      --shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    body {
+      font-family: 'Tahoma', sans-serif;
+      background-color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .converter {
+      background: white;
+      padding: 30px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+    }
+    select, input {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+      width: 80%;
+      border: 1px solid #ccc;
+      border-radius: var(--border-radius);
+      background-color: #f9f9f9;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+    }
+    h2, h3 {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="converter">
+    <h2>محول العملات</h2>
+    <input type="number" id="amount" placeholder="أدخل المبلغ" /> <br />
+    <label for="from">من:</label>
+    <select id="from"></select>
+    <label for="to">إلى:</label>
+    <select id="to"></select> <br />
+    <button onclick="convertCurrency()">تحويل</button>
+    <h3 id="result"></h3>
+  </div>
+
+  <script>
+    let exchangeRates = {};
+    let cryptoRates = {};
+
+    const supportedCurrencies = [
+      { code: "USD", name: "دولار أمريكي", type: "fiat" },
+      { code: "EUR", name: "يورو", type: "fiat" },
+      { code: "SAR", name: "ريال سعودي", type: "fiat" },
+      { code: "EGP", name: "جنيه مصري", type: "fiat" },
+      { code: "AED", name: "درهم إماراتي", type: "fiat" },
+      { code: "JPY", name: "ين ياباني", type: "fiat" },
+      { code: "GBP", name: "جنيه إسترليني", type: "fiat" },
+      { code: "BTC", name: "بيتكوين", type: "crypto" },
+      { code: "ETH", name: "إيثريوم", type: "crypto" },
+      { code: "BNB", name: "بينانس كوين", type: "crypto" },
+      { code: "SOL", name: "سولانا", type: "crypto" },
+      { code: "TRX", name: "ترون", type: "crypto" },
+      { code: "XRP", name: "ريبل", type: "crypto" },
+      { code: "DOGE", name: "دوجكوين", type: "crypto" }
+    ];
+
+    async function fetchFiatRates() {
+      try {
+        const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const data = await res.json();
+        exchangeRates = data.rates;
+      } catch (error) {
+        alert('فشل تحميل أسعار العملات التقليدية، سيتم استخدام أسعار ثابتة.');
+        exchangeRates = {
+          USD: 1,
+          EUR: 0.91,
+          SAR: 3.75,
+          EGP: 47,
+          AED: 3.67,
+          JPY: 157,
+          GBP: 0.79
+        };
+      }
+    }
+
+    async function fetchCryptoRates() {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,tron,ripple,dogecoin&vs_currencies=usd');
+        const data = await res.json();
+        cryptoRates = {
+          BTC: data.bitcoin.usd,
+          ETH: data.ethereum.usd,
+          BNB: data.binancecoin.usd,
+          SOL: data.solana.usd,
+          TRX: data.tron.usd,
+          XRP: data.ripple.usd,
+          DOGE: data.dogecoin.usd
+        };
+      } catch (error) {
+        alert('فشل تحميل أسعار العملات الرقمية، سيتم استخدام أسعار ثابتة.');
+        cryptoRates = {
+          BTC: 30000,
+          ETH: 2000,
+          BNB: 300,
+          SOL: 20,
+          TRX: 0.06,
+          XRP: 0.5,
+          DOGE: 0.06
+        };
+      }
+    }
+
+    function populateCurrencyDropdowns() {
+      const fromSelect = document.getElementById('from');
+      const toSelect = document.getElementById('to');
+      supportedCurrencies.forEach(currency => {
+        const optionFrom = document.createElement('option');
+        optionFrom.value = currency.code;
+        optionFrom.textContent = currency.name;
+        fromSelect.appendChild(optionFrom);
+
+        const optionTo = document.createElement('option');
+        optionTo.value = currency.code;
+        optionTo.textContent = currency.name;
+        toSelect.appendChild(optionTo);
+      });
+    }
+
+    function convertCurrency() {
+      const amount = parseFloat(document.getElementById('amount').value);
+      const from = document.getElementById('from').value;
+      const to = document.getElementById('to').value;
+
+      if (isNaN(amount)) {
+        alert('يرجى إدخال مبلغ صالح');
+        return;
+      }
+
+      const fromCurrency = supportedCurrencies.find(c => c.code === from);
+      const toCurrency = supportedCurrencies.find(c => c.code === to);
+
+      if (!fromCurrency || !toCurrency) {
+        alert('العملة غير مدعومة');
+        return;
+      }
+
+      let usdAmount;
+
+      if (fromCurrency.type === 'fiat') {
+        if (!exchangeRates[from]) {
+          alert('سعر صرف العملة غير متوفر');
+          return;
+        }
+        usdAmount = amount / exchangeRates[from];
+      } else {
+        if (!cryptoRates[from]) {
+          alert('سعر صرف العملة الرقمية غير متوفر');
+          return;
+        }
+        usdAmount = amount * cryptoRates[from];
+      }
+
+      let converted;
+      if (toCurrency.type === 'fiat') {
+        if (!exchangeRates[to]) {
+          alert('سعر صرف العملة غير متوفر');
+          return;
+        }
+        converted = usdAmount * exchangeRates[to];
+      } else {
+        if (!cryptoRates[to]) {
+          alert('سعر صرف العملة الرقمية غير متوفر');
+          return;
+        }
+        converted = usdAmount / cryptoRates[to];
+      }
+
+      document.getElementById('result').innerText = `${amount} ${from} = ${converted.toFixed(6)} ${to}`;
+    }
+
+    async function init() {
+      await fetchFiatRates();
+      await fetchCryptoRates();
+      populateCurrencyDropdowns();
+    }
+
+    init();
+  </script>
+</body>
+</html>
